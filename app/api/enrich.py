@@ -56,7 +56,15 @@ async def enrich_product(request: EnrichRequest):
                 detail="product_description cannot be empty"
             )
         
-        # Enrich product using GPT-4o
+        # Check if already enriched
+        existing_codes = excel_service.get_existing_product_codes()
+        if request.product_code in existing_codes:
+             logger.warning(f"Product {request.product_code} already enriched, skipping.")
+             raise HTTPException(
+                 status_code=409,
+                 detail=f"Product {request.product_code} already enriched"
+             )
+
         # Enrich product using Multi-Agent Service
         enriched_data = await agent_service.enrich_product_multi_agent(
             product_code=request.product_code,
@@ -72,6 +80,9 @@ async def enrich_product(request: EnrichRequest):
         
         return response
         
+    except HTTPException as e:
+        raise e
+    
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         raise HTTPException(status_code=400, detail=str(e))

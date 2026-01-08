@@ -6,7 +6,7 @@ import os
 import logging
 from datetime import datetime
 from typing import Dict, Any, Set, List, Optional
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 
 from app.core.config import config
@@ -19,134 +19,158 @@ class ExcelService:
     """Service for managing Excel file operations."""
     
     def __init__(self):
-        """Initialize Excel service with output path."""
-        self.output_path = config.EXCEL_OUTPUT_PATH
-        self._ensure_data_directory()
+        """Initialize Excel service with input path."""
+        self.file_path = config.INPUT_PRODUCTS_PATH
+        self._ensure_columns_exist()
     
-    def _ensure_data_directory(self) -> None:
-        """Create data directory if it doesn't exist."""
-        data_dir = os.path.dirname(self.output_path)
-        if not os.path.exists(data_dir):
-            os.makedirs(data_dir)
-            logger.info(f"Created data directory: {data_dir}")
-    
-    def _create_new_workbook(self) -> Workbook:
-        """
-        Create a new Excel workbook with headers.
-        
-        Returns:
-            Workbook: New workbook with formatted headers
-        """
-        wb = Workbook()
-        ws = wb.active
-        ws.title = "Enriched Products"
-        
-        # Define headers
-        headers = [
-            "Product Code",
-            "Short Title",
-            "Short Description",
-            "Long Description",
-            "Timestamp"
-        ]
-        
-        # Write headers
-        ws.append(headers)
-        
-        # Style headers
-        header_font = Font(bold=True, color="FFFFFF")
-        header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-        header_alignment = Alignment(horizontal="center", vertical="center")
-        
-        for cell in ws[1]:
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_alignment
-        
-        # Set column widths
-        ws.column_dimensions['A'].width = 15  # Product Code
-        ws.column_dimensions['B'].width = 40  # Short Title
-        ws.column_dimensions['C'].width = 50  # Short Description
-        ws.column_dimensions['D'].width = 60  # Long Description
-        ws.column_dimensions['E'].width = 20  # Timestamp
-        
-        logger.info(f"Created new workbook: {self.output_path}")
-        return wb
-    
+    def _ensure_columns_exist(self) -> None:
+        """Ensure enrichment columns exist in the file."""
+        if not os.path.exists(self.file_path):
+            logger.error(f"Input file not found: {self.file_path}")
+            return
+
+        try:
+            wb = load_workbook(self.file_path)
+            ws = wb.active
+            
+            # Check headers in first row
+            headers = [cell.value for cell in ws[1]]
+            required_headers = [
+                "Short Title",
+                "Short Description", 
+                "Long Description",
+                "Timestamp"
+            ]
+            
+            # Map of header name to column index (1-based)
+            self.header_map = {}
+            for idx, header in enumerate(headers, 1):
+                if header:
+                    self.header_map[header] = idx
+            
+            # Add missing headers
+            new_headers_added = False
+            current_max_col = ws.max_column
+            
+            header_font = Font(bold=True)
+            header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+            
+            for req in required_headers:
+                if req not in self.header_map:
+                    current_max_col += 1
+                    cell = ws.cell(row=1, column=current_max_col, value=req)
+                    cell.font = header_font
+                    # cell.fill = header_fill # Optional: match existing style if desired
+                    self.header_map[req] = current_max_col
+                    new_headers_added = True
+                    
+                    # Set approximate widths
+                    if "Description" in req:
+                        ws.column_dimensions[cell.column_letter].width = 50
+                    elif "Title" in req:
+                         ws.column_dimensions[cell.column_letter].width = 30
+                    elif "Timestamp" in req:
+                         ws.column_dimensions[cell.column_letter].width = 20
+
+            if new_headers_added:
+                wb.save(self.file_path)
+                logger.info("Added missing enrichment columns to Excel file.")
+                
+        except Exception as e:
+            logger.error(f"Failed to ensure columns: {e}")
+
     def save_enrichment(self, enriched_data: Dict[str, Any]) -> None:
         """
-        Save enriched product data to Excel file.
+        Save enriched product data to Excel file by updating the row.
         
         Args:
             enriched_data: Dictionary containing enriched product information
         """
+        product_code = enriched_data.get("product_code")
+        if not product_code:
+            raise ValueError("Product code missing in enrichment data")
+
         try:
-            # Load existing workbook or create new one
-            if os.path.exists(self.output_path):
-                wb = load_workbook(self.output_path)
-                ws = wb.active
-                logger.info(f"Loaded existing workbook: {self.output_path}")
-            else:
-                wb = self._create_new_workbook()
-                ws = wb.active
+            wb = load_workbook(self.file_path)
+            ws = wb.active
             
-            # Prepare row data
+            # Find row for product code
+            target_row = None
+            code_col_idx = 1 # Assuming Product Code is first column
+            
+            # Iterate to find the product code
+            # Note: For very large files, this might be slow, but fine for typical use
+            for row in ws.iter_rows(min_row=2):
+                if row[0].value and str(row[0].value).strip() == str(product_code).strip():
+                    target_row = row[0].row
+                    break
+            
+            if not target_row:
+                raise ValueError(f"Product code {product_code} not found in file")
+
+            # Update validation
+            self._ensure_columns_exist() # Re-ensure map is fresh
+
+            # Update cells
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
-            row_data = [
-                enriched_data.get("product_code", ""),
-                enriched_data.get("short_title", ""),
-                enriched_data.get("short_description", ""),
-                enriched_data.get("long_description", ""),
-                timestamp
-            ]
+            updates = {
+                "Short Title": enriched_data.get("short_title", ""),
+                "Short Description": enriched_data.get("short_description", ""),
+                "Long Description": enriched_data.get("long_description", ""),
+                "Timestamp": timestamp
+            }
             
-            # Append row
-            ws.append(row_data)
-            
-            # Apply text wrapping to description columns
-            last_row = ws.max_row
-            ws[f'C{last_row}'].alignment = Alignment(wrap_text=True, vertical="top")
-            ws[f'D{last_row}'].alignment = Alignment(wrap_text=True, vertical="top")
-            
-            # Save workbook
-            wb.save(self.output_path)
-            logger.info(f"Saved enrichment for product {enriched_data.get('product_code')} to Excel")
+            for header, value in updates.items():
+                col_idx = self.header_map.get(header)
+                if col_idx:
+                    cell = ws.cell(row=target_row, column=col_idx, value=value)
+                    if "Description" in header:
+                        cell.alignment = Alignment(wrap_text=True, vertical="top")
+
+            wb.save(self.file_path)
+            logger.info(f"Updated enrichment for product {product_code}")
             
         except Exception as e:
             logger.error(f"Failed to save to Excel: {e}")
             raise ValueError(f"Excel save failed: {e}")
-    
-    def get_output_path(self) -> str:
-        """
-        Get the Excel output file path.
-        
-        Returns:
-            str: Path to the Excel file
-        """
-        return self.output_path
-
 
     def get_existing_product_codes(self) -> Set[str]:
         """
         Get set of product codes that have already been enriched.
+        Checks if 'Short Title' column is populated.
         
         Returns:
-            Set[str]: Set of existing product codes
+            Set[str]: Set of existing enriched product codes
         """
         existing_codes = set()
         
-        if not os.path.exists(self.output_path):
+        if not os.path.exists(self.file_path):
             return existing_codes
             
         try:
-            wb = load_workbook(self.output_path, read_only=True)
+            wb = load_workbook(self.file_path, read_only=True)
             ws = wb.active
             
-            # Skip header row
+            # Find "Short Title" column index
+            headers = [cell.value for cell in ws[1]]
+            short_title_idx = -1
+            for idx, header in enumerate(headers):
+                if header == "Short Title":
+                    short_title_idx = idx
+                    break
+            
+            if short_title_idx == -1:
+                return set() # Column doesn't exist, so no products are enriched
+            
+            # Iterate rows
             for row in ws.iter_rows(min_row=2, values_only=True):
-                if row and row[0]:  # Product Code is first column
-                    existing_codes.add(str(row[0]).strip())
+                if row and len(row) > short_title_idx:
+                    product_code = str(row[0]).strip() if row[0] else ""
+                    short_title = str(row[short_title_idx]).strip() if row[short_title_idx] else ""
+                    
+                    if product_code and short_title:
+                         existing_codes.add(product_code)
                     
             logger.info(f"Found {len(existing_codes)} existing enriched products")
             return existing_codes
@@ -168,23 +192,20 @@ class ExcelService:
         """
         products = []
         exclude_codes = exclude_codes or set()
-        input_path = config.INPUT_PRODUCTS_PATH
         
-        if not os.path.exists(input_path):
-            logger.error(f"Input file not found: {input_path}")
-            raise FileNotFoundError(f"Input file not found: {input_path}")
+        if not os.path.exists(self.file_path):
+            return []
             
         try:
-            wb = load_workbook(input_path, read_only=True)
+            wb = load_workbook(self.file_path, read_only=True)
             ws = wb.active
             
-            # Skip header row
             for row in ws.iter_rows(min_row=2, values_only=True):
                 if not row or len(row) < 2:
                     continue
                     
                 code = str(row[0]).strip()
-                description = str(row[1]).strip()
+                description = str(row[1]).strip() # Assuming description is 2nd column
                 
                 if not code or not description:
                     continue
