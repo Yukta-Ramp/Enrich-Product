@@ -25,11 +25,6 @@ class Config:
     PORT: int = int(os.getenv("PORT", "8000"))
     
     # Excel Settings
-    EXCEL_OUTPUT_PATH: str = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        "data",
-        "enriched_products.xlsx"
-    )
     INPUT_PRODUCTS_PATH: str = os.path.join(
         os.path.dirname(os.path.dirname(__file__)),
         "data",

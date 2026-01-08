@@ -78,7 +78,6 @@ async def startup_event():
     logger.info(f"Using Azure OpenAI endpoint: {config.AZURE_OPENAI_ENDPOINT}")
     logger.info(f"Enricher deployment: {config.ENRICHER_DEPLOYMENT}")
     logger.info(f"Temperature: {config.OPENAI_TEMPERATURE}")
-    logger.info(f"Excel output: {config.EXCEL_OUTPUT_PATH}")
     
     # Log registered routes
     logger.info("Registered Routes:")

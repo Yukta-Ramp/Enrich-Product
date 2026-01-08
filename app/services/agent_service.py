@@ -54,7 +54,10 @@ class AgentService:
         )
         strategic_brief = await self._call_gpt("You are a strategist.", strategist_input)
         logger.info(f"✅ Strategist Agent: Brief created.")
-        logger.info(f"   Brief Summary: {strategic_brief[:100]}...")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"STRATEGIST OUTPUT:")
+        logger.info(f"{strategic_brief}")
+        logger.info(f"{'='*80}\n")
 
         # Stage 2: Creator
         logger.info(f"✍️ Creator Agent: drafting content based on brief...")
@@ -65,6 +68,10 @@ class AgentService:
         )
         draft_content = await self._call_gpt("You are a copywriter.", creator_input)
         logger.info(f"✅ Creator Agent: Content drafted.")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"CREATOR OUTPUT:")
+        logger.info(f"{draft_content}")
+        logger.info(f"{'='*80}\n")
 
         # Stage 3: Reviewer
         logger.info(f"🔍 Reviewer Agent: validating and formatting...")
@@ -74,6 +81,10 @@ class AgentService:
         )
         final_json_str = await self._call_gpt("You are a QA specialist.", reviewer_input, json_mode=True)
         logger.info(f"✅ Reviewer Agent: Approved and formatted.")
+        logger.info(f"\n{'='*80}")
+        logger.info(f"REVIEWER OUTPUT (Final JSON):")
+        logger.info(f"{final_json_str}")
+        logger.info(f"{'='*80}\n")
         
         try:
             final_data = json.loads(final_json_str)
