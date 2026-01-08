@@ -278,3 +278,28 @@ python test_agent.py
 | 400 | Bad Request | Missing or invalid input |
 | 409 | Conflict | Product already enriched |
 | 500 | Server Error | AI service failure or file I/O error |
+
+
+---
+
+## Rules
+
+Strategist Agent Rules:
+1. Identify core product category
+2. Determine target audience
+3. Define tone of voice
+4. List 3-5 key features/benefits
+5. Set specific constraints (e.g., "Do not use the word 'cheap'")
+
+Creator Agent Rules:
+1. Product Title: SEO-friendly, 50-100 characters
+2. Short Description: Punchy, 1-2 sentences
+3. Long Description: Detailed, persuasive, 1-2 paragraphs
+4. Follow tone and constraints from the brief strictly
+5. Focus on benefits, not just features
+
+Reviewer Agent Rules:
+1. Review for grammar and clarity
+2. Ensure NO hallucinations (facts not supported by input)
+3. Format as strict JSON
+4. Return ONLY valid JSON (no markdown)
