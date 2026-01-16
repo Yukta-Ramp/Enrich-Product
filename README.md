@@ -4,7 +4,7 @@ AI-powered product enrichment using a **Multi-Agent Architecture** with Azure Op
 
 ## 🚀 Features
 
-- **Multi-Agent AI Pipeline**: 3-stage enrichment (Strategist → Creator → Reviewer)
+- **Multi-Agent AI Pipeline**: 2-stage enrichment (Creator → Reviewer)
 - **Single File Architecture**: Reads and writes to the same Excel file
 - **Duplicate Prevention**: Automatically skips already-enriched products
 - **Batch Processing**: Process 10 products at a time
@@ -47,6 +47,21 @@ Place your product data in `app/data/products.xlsx` with the following structure
 | ABC123       | Basic product info  |
 | DEF456       | Another product     |
 
+### 5. Saving Enriched Data
+
+**Service**: `app/services/excel_service.py`
+
+#### Process:
+1. Opens `app/data/products.xlsx`
+2. Ensures enrichment columns exist (adds them if missing):
+   - Short Description (Enriched)
+   - Product Description (Enriched)
+   - Product Long Description (Enriched)
+   - Timestamp
+3. Finds the row matching the product code
+4. Updates the row with enriched data
+5. Saves the file
+
 ### 4. Start the Server
 
 ```bash
@@ -79,9 +94,9 @@ Once the server is running, visit:
 ```json
 {
   "product_code": "ABC123",
-  "short_title": "Heavy-Duty Cardboard Shipping Box",
-  "short_description": "Durable corrugated cardboard box...",
-  "long_description": "This heavy-duty cardboard box..."
+  "short_title": "The shipping unit is a heavy-duty cardboard box constructed from corrugated fiberboard.",
+  "short_description": "The unit consists of a double-walled corrugated cardboard container designed for shipping applications.",
+  "long_description": "This heavy-duty shipping box is manufactured from double-walled corrugated cardboard..."
 }
 ```
 
@@ -160,31 +175,27 @@ Product_Enrichment-V3/
 ## 🔄 How It Works
 
 1. **Read**: System scans `products.xlsx` for unenriched products
-2. **Enrich**: Each product goes through 3 AI agents:
-   - **Strategist**: Analyzes product and creates strategy
-   - **Creator**: Drafts enriched content
-   - **Reviewer**: Validates and formats output
+2. **Enrich**: Each product goes through 2 AI agents:
+   - **Creator**: Drafts clinical technical sentences for Title and Summary fields
+   - **Reviewer**: Validates, "purifies" from fluff, and formats output as JSON
 3. **Save**: Enriched data is written back to the same Excel file
-4. **Prevent Duplicates**: Products with populated "Short Title" are skipped
+4. **Prevent Duplicates**: Products with populated "Short Description (Enriched)" are skipped
 
 For a detailed step-by-step flow, see [PROCESS_FLOW.md](PROCESS_FLOW.md).
 
 ## 🎯 Multi-Agent Architecture
 
-### Strategist Agent
-- Analyzes product information
-- Identifies key selling points
-- Defines target audience and tone
-
 ### Creator Agent
-- Receives strategic brief
-- Drafts compelling product content
-- Creates short and long descriptions
+- Analyzes raw product strings
+- Identifies technical specifications
+- Drafts clinical, technical sentences for Title and Summary fields
+- Creates a detailed technical specification paragraph
 
 ### Reviewer Agent
-- Validates content quality
+- Validates content quality and factual accuracy
+- Ensures technical sentence structure (no comma-separated lists)
+- Purifies content from marketing "fluff" or qualitative adjectives
 - Ensures JSON format compliance
-- Performs final quality check
 
 ## 📊 Output Format
 
@@ -192,15 +203,15 @@ The system adds these columns to your Excel file:
 
 | Column | Description |
 |--------|-------------|
-| Short Title | Concise product title (50-80 chars) |
-| Short Description | Brief description (100-150 chars) |
-| Long Description | Detailed product information (300-500 chars) |
+| Short Description (Enriched) | Concise product title (50-80 chars) |
+| Product Description (Enriched) | Brief description (100-150 chars) |
+| Product Long Description (Enriched) | Detailed technical breakdown (15-20 lines, multiple paragraphs) |
 | Timestamp | When the enrichment was performed |
 
 ## ⚠️ Important Notes
 
 - **File Access**: Ensure `products.xlsx` is not open in Excel during processing
-- **Duplicate Prevention**: Products are identified as enriched if "Short Title" has a value
+- **Duplicate Prevention**: Checks if "Short Description (Enriched)" is populated
 - **Batch Size**: Default is 10 products per bulk request
 - **API Costs**: Each product requires 3 GPT-4o API calls
 
@@ -213,11 +224,11 @@ The system adds these columns to your Excel file:
 ### Products not being enriched
 - Ensure `products.xlsx` exists in `app/data/`
 - Check that products have both code and description
-- Verify products don't already have "Short Title" populated
+- Verify products don't already have "Short Description (Enriched)" populated
 
 ### 409 Conflict errors
 - This means the product is already enriched
-- Check the "Short Title" column in Excel
+- Check the "Short Description (Enriched)" column in Excel
 - This is expected behavior, not an error
 
 ## 📝 License

@@ -36,9 +36,9 @@ class ExcelService:
             # Check headers in first row
             headers = [cell.value for cell in ws[1]]
             required_headers = [
-                "Short Title",
-                "Short Description", 
-                "Long Description",
+                "Short Description (Enriched)",
+                "Product Description (Enriched)", 
+                "Product Long Description (Enriched)",
                 "Timestamp"
             ]
             
@@ -115,9 +115,9 @@ class ExcelService:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             updates = {
-                "Short Title": enriched_data.get("short_title", ""),
-                "Short Description": enriched_data.get("short_description", ""),
-                "Long Description": enriched_data.get("long_description", ""),
+                "Short Description (Enriched)": enriched_data.get("short_title", ""),
+                "Product Description (Enriched)": enriched_data.get("short_description", ""),
+                "Product Long Description (Enriched)": enriched_data.get("long_description", ""),
                 "Timestamp": timestamp
             }
             
@@ -138,7 +138,7 @@ class ExcelService:
     def get_existing_product_codes(self) -> Set[str]:
         """
         Get set of product codes that have already been enriched.
-        Checks if 'Short Title' column is populated.
+        Checks if 'Short Description (Enriched)' column is populated.
         
         Returns:
             Set[str]: Set of existing enriched product codes
@@ -152,11 +152,11 @@ class ExcelService:
             wb = load_workbook(self.file_path, read_only=True)
             ws = wb.active
             
-            # Find "Short Title" column index
+            # Find "Short Description (Enriched)" column index
             headers = [cell.value for cell in ws[1]]
             short_title_idx = -1
             for idx, header in enumerate(headers):
-                if header == "Short Title":
+                if header == "Short Description (Enriched)":
                     short_title_idx = idx
                     break
             

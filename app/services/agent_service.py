@@ -1,11 +1,10 @@
-
 import json
 import logging
 from typing import Dict, Any, List
 from openai import AzureOpenAI
 
 from app.core.config import config
-from app.core.agent_prompts import STRATEGIST_PROMPT, CREATOR_PROMPT, REVIEWER_PROMPT
+from app.core.agent_prompts import CREATOR_PROMPT, REVIEWER_PROMPT
 from app.services.excel_service import excel_service
 
 logging.basicConfig(level=logging.INFO)
@@ -20,7 +19,7 @@ class AgentService:
             api_key=config.AZURE_OPENAI_API_KEY,
             api_version=config.AZURE_OPENAI_API_VERSION
         )
-        self.model = config.ENRICHER_DEPLOYMENT  # Using same model for all agents for now
+        self.model = config.ENRICHER_DEPLOYMENT
         self.temperature = config.OPENAI_TEMPERATURE
 
     async def _call_gpt(self, system_prompt: str, user_prompt: str, json_mode: bool = False) -> str:
@@ -42,27 +41,13 @@ class AgentService:
 
     async def enrich_product_multi_agent(self, product_code: str, product_description: str) -> Dict[str, Any]:
         """
-        Run the 3-stage agent process.
+        Run the 2-stage agent process (Creator -> Reviewer).
         """
-        logger.info(f"Starting multi-agent enrichment for {product_code}")
+        logger.info(f"Starting enrichment for {product_code}")
         
-        # Stage 1: Strategist
-        logger.info(f"🤖 Strategist Agent: analyzing {product_code}...")
-        strategist_input = STRATEGIST_PROMPT.format(
-            product_code=product_code, 
-            product_description=product_description
-        )
-        strategic_brief = await self._call_gpt("You are a strategist.", strategist_input)
-        logger.info(f"✅ Strategist Agent: Brief created.")
-        logger.info(f"\n{'='*80}")
-        logger.info(f"STRATEGIST OUTPUT:")
-        logger.info(f"{strategic_brief}")
-        logger.info(f"{'='*80}\n")
-
-        # Stage 2: Creator
-        logger.info(f"✍️ Creator Agent: drafting content based on brief...")
+        # Stage 1: Creator
+        logger.info(f"✍️ Creator Agent: drafting content for {product_code}...")
         creator_input = CREATOR_PROMPT.format(
-            strategic_brief=strategic_brief,
             product_code=product_code,
             product_description=product_description
         )
@@ -73,7 +58,7 @@ class AgentService:
         logger.info(f"{draft_content}")
         logger.info(f"{'='*80}\n")
 
-        # Stage 3: Reviewer
+        # Stage 2: Reviewer
         logger.info(f"🔍 Reviewer Agent: validating and formatting...")
         reviewer_input = REVIEWER_PROMPT.format(
             draft_content=draft_content,
