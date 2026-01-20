@@ -2,9 +2,10 @@ import json
 import logging
 from typing import Dict, Any, List
 from openai import AzureOpenAI
+from app.core.classification_data import DIVISION_CLASS_GROUPS
 
 from app.core.config import config
-from app.core.agent_prompts import CREATOR_PROMPT, REVIEWER_PROMPT
+from app.core.agent_prompts import CREATOR_PROMPT, REVIEWER_PROMPT, CLASSIFIER_PROMPT
 from app.services.excel_service import excel_service
 
 logging.basicConfig(level=logging.INFO)
@@ -73,10 +74,31 @@ class AgentService:
         
         try:
             final_data = json.loads(final_json_str)
+            
+            # Stage 3: Classifier
+            logger.info(f"🏷️ Classifier Agent: determining division and class for {product_code}...")
+            
+            # Prepare mapping for prompt
+            mapping_str = ""
+            for div, classes in DIVISION_CLASS_GROUPS.items():
+                mapping_str += f"- {div}: {', '.join(classes)}\n"
+            
+            classifier_input = CLASSIFIER_PROMPT.format(
+                enriched_content=final_json_str,
+                classification_mapping=mapping_str
+            )
+            division_json_str = await self._call_gpt("You are a classification expert.", classifier_input, json_mode=True)
+            logger.info(f"✅ Classifier Agent: Product categorized.")
+            logger.info(f"CLASSIFIER OUTPUT: {division_json_str}")
+            
+            division_data = json.loads(division_json_str)
+            final_data["product_division"] = division_data.get("product_division", "Unknown")
+            final_data["class_group"] = division_data.get("class_group", "Unknown")
+            
             return final_data
         except json.JSONDecodeError:
-            logger.error(f"Failed to parse final JSON for {product_code}")
-            raise ValueError("Final agent output was not valid JSON")
+            logger.error(f"Failed to parse AI output for {product_code}")
+            raise ValueError("AI output was not valid JSON")
 
     async def process_bulk_enrichment(self, batch_size: int = 10) -> Dict[str, Any]:
         """
@@ -115,10 +137,10 @@ class AgentService:
                     enriched_data = await self.enrich_product_multi_agent(product_code, description)
                     
                     # Validate keys
-                    required = ["product_code", "short_title", "short_description", "long_description"]
+                    required = ["product_code", "short_title", "short_description", "long_description", "product_division", "class_group"]
                     for req in required:
                         if req not in enriched_data:
-                            enriched_data[req] = "" # fallback or raise error?
+                            enriched_data[req] = "" # fallback
                             
                     excel_service.save_enrichment(enriched_data)
                     existing_codes.add(product_code)

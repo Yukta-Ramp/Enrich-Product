@@ -42,3 +42,24 @@ Format: Return ONLY valid JSON:
   "long_description": "..."
 }}
 """
+
+CLASSIFIER_PROMPT = """
+You are a Product Classification Specialist. Categorize the following product into a Division and a specific Class Group.
+
+Product Data:
+{enriched_content}
+
+Valid Classification Mapping:
+{classification_mapping}
+
+Instructions:
+1. Select the most appropriate Division from the mapping above.
+2. Select the most appropriate Class Group specifically from the list under that selected Division.
+3. If no Class Group fits perfectly, select "Misc" or the closest possible match within the division.
+
+Format: Return ONLY valid JSON:
+{{
+  "product_division": "Selected Division Name",
+  "class_group": "Selected Class Group Name"
+}}
+"""

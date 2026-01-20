@@ -98,7 +98,7 @@ async def enrich_product(request: EnrichRequest):
 @router.post(
     "/enrich/bulk",
     summary="Bulk Enrich Products",
-    description="Enrich next batch of 10 new products"
+    description="Enrich next batch of 100 new products"
 )
 async def bulk_enrich_products() -> Dict[str, Any]:
     """
@@ -110,13 +110,12 @@ async def bulk_enrich_products() -> Dict[str, Any]:
     try:
         logger.info("Received bulk enrichment request")
         
-        stats = await agent_service.process_bulk_enrichment(batch_size=10)
+        stats = await agent_service.process_bulk_enrichment(batch_size=100)
         
         return stats
         
     except ValueError as e:
         logger.error(f"Bulk validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
     
     except Exception as e:
         logger.error(f"Unexpected error during bulk enrichment: {e}")
