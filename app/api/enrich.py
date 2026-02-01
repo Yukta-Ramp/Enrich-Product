@@ -110,7 +110,7 @@ async def bulk_enrich_products() -> Dict[str, Any]:
     try:
         logger.info("Received bulk enrichment request")
         
-        stats = await agent_service.process_bulk_enrichment(batch_size=100)
+        stats = await agent_service.process_bulk_enrichment(batch_size=30)
         
         return stats
         

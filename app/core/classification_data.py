@@ -7,6 +7,7 @@ DIVISION_CLASS_GROUPS = {
         "FOOD",
         "HYGIENE",
         "FASHION",
+        "BAGS",
         "PRODUCTION"
     ],
     "Industrial": [

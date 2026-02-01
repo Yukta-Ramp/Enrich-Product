@@ -63,7 +63,8 @@ class AgentService:
         logger.info(f"🔍 Reviewer Agent: validating and formatting...")
         reviewer_input = REVIEWER_PROMPT.format(
             draft_content=draft_content,
-            product_code=product_code
+            product_code=product_code,
+            product_description=product_description
         )
         final_json_str = await self._call_gpt("You are a QA specialist.", reviewer_input, json_mode=True)
         logger.info(f"✅ Reviewer Agent: Approved and formatted.")
