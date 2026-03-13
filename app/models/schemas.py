@@ -28,6 +28,8 @@ class EnrichResponse(BaseModel):
     short_title: str = Field(..., description="Short product title (8-10 words)")
     short_description: str = Field(..., description="Brief description (1-2 sentences)")
     long_description: str = Field(..., description="Detailed description (1-2 paragraphs)")
+    product_division: str = Field(..., description="Product division (Retail, Industrial, Agriculture)")
+    class_group: str = Field(..., description="Specific class group within the division")
     
     class Config:
         json_schema_extra = {
@@ -35,7 +37,9 @@ class EnrichResponse(BaseModel):
                 "product_code": "ABC123",
                 "short_title": "Heavy-Duty Corrugated Cardboard Shipping Box",
                 "short_description": "Durable corrugated cardboard box designed for secure shipping and storage.",
-                "long_description": "This heavy-duty cardboard box is made from high-quality corrugated material, providing excellent protection for goods during transit. Ideal for e-commerce, logistics, and warehouse storage applications."
+                "long_description": "This heavy-duty cardboard box is made from high-quality corrugated material, providing excellent protection for goods during transit. Ideal for e-commerce, logistics, and warehouse storage applications.",
+                "product_division": "Industrial",
+                "class_group": "Protective Packaging"
             }
         }
 

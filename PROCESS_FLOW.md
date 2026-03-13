@@ -70,32 +70,26 @@ For bulk enrichment, the system:
 
 **Service**: `app/services/agent_service.py`
 
-For each product, the system runs a **3-stage AI pipeline**:
+For each product, the system runs a **2-stage AI pipeline**:
 
-#### Stage 1: Strategist Agent
-- **Purpose**: Analyze the product and create a strategic brief
-- **Prompt**: `STRATEGIST_PROMPT` from `app/core/agent_prompts.py`
-- **Input**: Product code + description
-- **Output**: Strategic brief with key selling points, target audience, tone
-
-#### Stage 2: Creator Agent
-- **Purpose**: Draft the actual product content
+#### Stage 1: Creator Agent
+- **Purpose**: Analyze the product and draft the actual technical content
 - **Prompt**: `CREATOR_PROMPT`
-- **Input**: Strategic brief + product info
-- **Output**: Draft short title, short description, long description
+- **Input**: Product code + description
+- **Output**: Draft clinical sentences for technical fields
 
-#### Stage 3: Reviewer Agent
-- **Purpose**: Validate and format the output
+#### Stage 2: Reviewer Agent
+- **Purpose**: Validate and "purify" the output
 - **Prompt**: `REVIEWER_PROMPT`
 - **Input**: Draft content + product code
-- **Output**: Final JSON with validated fields
+- **Output**: Final JSON with validated technical sentences
 - **Format**:
   ```json
   {
     "product_code": "ABC123",
-    "short_title": "...",
-    "short_description": "...",
-    "long_description": "..."
+    "short_title": "Concise technical sentence for Title field...",
+    "short_description": "Factual sentence for Summary field...",
+    "long_description": "Detailed technical spec paragraph..."
   }
   ```
 
@@ -108,9 +102,9 @@ For each product, the system runs a **3-stage AI pipeline**:
 #### Process:
 1. Opens `app/data/products.xlsx`
 2. Ensures enrichment columns exist (adds them if missing):
-   - Short Title
-   - Short Description
-   - Long Description
+   - Short Description (Enriched)
+   - Product Description (Enriched)
+   - Product Long Description (Enriched)
    - Timestamp
 3. Finds the row matching the product code
 4. Updates the row with enriched data
@@ -171,8 +165,7 @@ graph TD
     M --> N
     
     subgraph "Multi-Agent Pipeline"
-        N --> O[Strategist Agent]
-        O -->|Strategic Brief| P[Creator Agent]
+        N --> P[Creator Agent]
         P -->|Draft Content| Q[Reviewer Agent]
         Q -->|Validated JSON| R[Enriched Data]
     end
@@ -199,7 +192,7 @@ graph TD
 
 The system prevents duplicate enrichment through:
 
-1. **Column-Based Detection**: Checks if "Short Title" is populated
+1. **Column-Based Detection**: Checks if "Short Description (Enriched)" is populated
 2. **In-Memory Tracking**: During batch processing, tracks enriched codes
 3. **API-Level Blocking**: Returns 409 Conflict for already-enriched products
 
@@ -284,22 +277,16 @@ python test_agent.py
 
 ## Rules
 
-Strategist Agent Rules:
-1. Identify core product category
-2. Determine target audience
-3. Define tone of voice
-4. List 3-5 key features/benefits
-5. Set specific constraints (e.g., "Do not use the word 'cheap'")
-
 Creator Agent Rules:
-1. Product Title: SEO-friendly, 50-100 characters
-2. Short Description: Punchy, 1-2 sentences
-3. Long Description: Detailed, persuasive, 1-2 paragraphs
-4. Follow tone and constraints from the brief strictly
-5. Focus on benefits, not just features
+1. Product Title: Technical sentence, max 100 characters
+2. Product Description: Clinical sentence, max 200 characters
+3. Long Description: Detailed technical breakdown (15-20 lines), multiple paragraphs, no marketing fluff
+4. NO introductory phrases or quality adjectives
+5. Focus on facts, dimensions, and specifications
 
 Reviewer Agent Rules:
-1. Review for grammar and clarity
+1. Review for grammar and clinical tone
 2. Ensure NO hallucinations (facts not supported by input)
-3. Format as strict JSON
-4. Return ONLY valid JSON (no markdown)
+3. Ensure all fields are sentences (no comma-separated lists)
+4. Format as strict JSON
+5. Return ONLY valid JSON (no markdown)

@@ -1,3 +1,4 @@
+# This is a quick test script — it calls the bulk enrichment API endpoint and prints out the result so you can see if everything is working.
 
 import requests
 import json

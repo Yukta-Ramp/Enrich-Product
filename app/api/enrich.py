@@ -1,6 +1,4 @@
-"""
-API endpoint for product enrichment.
-"""
+# This file defines the API routes — one to enrich a single product and one to bulk-enrich a batch of products, both powered by the AI agent service.
 
 import logging
 from fastapi import APIRouter, HTTPException
@@ -98,7 +96,7 @@ async def enrich_product(request: EnrichRequest):
 @router.post(
     "/enrich/bulk",
     summary="Bulk Enrich Products",
-    description="Enrich next batch of 10 new products"
+    description="Enrich next batch of 100 new products"
 )
 async def bulk_enrich_products() -> Dict[str, Any]:
     """
@@ -110,13 +108,12 @@ async def bulk_enrich_products() -> Dict[str, Any]:
     try:
         logger.info("Received bulk enrichment request")
         
-        stats = await agent_service.process_bulk_enrichment(batch_size=10)
+        stats = await agent_service.process_bulk_enrichment(batch_size=30)
         
         return stats
         
     except ValueError as e:
         logger.error(f"Bulk validation error: {e}")
-        raise HTTPException(status_code=400, detail=str(e))
     
     except Exception as e:
         logger.error(f"Unexpected error during bulk enrichment: {e}")

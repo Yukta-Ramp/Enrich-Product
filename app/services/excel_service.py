@@ -1,6 +1,4 @@
-"""
-Excel service for saving enriched product data.
-"""
+# This file handles all reading and writing to the Excel file — it reads products that need enriching, saves the AI-generated content back to the right row, and tracks which products have already been done.
 
 import os
 import logging
@@ -36,9 +34,11 @@ class ExcelService:
             # Check headers in first row
             headers = [cell.value for cell in ws[1]]
             required_headers = [
-                "Short Title",
-                "Short Description", 
-                "Long Description",
+                "Short Description (Enriched)",
+                "Product Description (Enriched)", 
+                "Product Long Description (Enriched)",
+                "Product Division",
+                "Class Group",
                 "Timestamp"
             ]
             
@@ -51,26 +51,72 @@ class ExcelService:
             # Add missing headers
             new_headers_added = False
             current_max_col = ws.max_column
-            
             header_font = Font(bold=True)
-            header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
-            
+
+            # Ensure Product Division and Class Group are before Timestamp if they exist
+            # Order: ..., Product Division, Class Group, Timestamp
+            headers_to_check = ["Product Division", "Class Group"]
+            for target_col in headers_to_check:
+                if target_col in self.header_map and "Timestamp" in self.header_map:
+                    target_idx = self.header_map[target_col]
+                    time_idx = self.header_map["Timestamp"]
+                    if target_idx > time_idx:
+                        logger.info(f"Moving '{target_col}' column before 'Timestamp'")
+                        ws.insert_cols(time_idx)
+                        for r in range(1, ws.max_row + 1):
+                            ws.cell(row=r, column=time_idx).value = ws.cell(row=r, column=target_idx + 1).value
+                            if r == 1: ws.cell(row=r, column=time_idx).font = header_font
+                        ws.delete_cols(target_idx + 1)
+                        # Refresh map
+                        headers = [cell.value for cell in ws[1]]
+                        self.header_map = {h: i for i, h in enumerate(headers, 1) if h}
+
+            # Special check to ensure Product Division is immediately before Class Group
+            if "Product Division" in self.header_map and "Class Group" in self.header_map:
+                div_idx = self.header_map["Product Division"]
+                class_idx = self.header_map["Class Group"]
+                if div_idx != class_idx - 1:
+                    logger.info("Ensuring 'Product Division' is next to 'Class Group'")
+                    # Move Product Division to class_idx, which shifts Class Group to class_idx + 1
+                    ws.insert_cols(class_idx)
+                    for r in range(1, ws.max_row + 1):
+                        old_col = div_idx if div_idx < class_idx else div_idx + 1
+                        ws.cell(row=r, column=class_idx).value = ws.cell(row=r, column=old_col).value
+                        if r == 1: ws.cell(row=r, column=class_idx).font = header_font
+                    
+                    old_col_to_del = div_idx if div_idx < class_idx else div_idx + 1
+                    ws.delete_cols(old_col_to_del)
+                    
+                    # Refresh map
+                    headers = [cell.value for cell in ws[1]]
+                    self.header_map = {h: i for i, h in enumerate(headers, 1) if h}
+
             for req in required_headers:
                 if req not in self.header_map:
-                    current_max_col += 1
-                    cell = ws.cell(row=1, column=current_max_col, value=req)
+                    # If target is missing but Timestamp exists, insert before it
+                    if req in ["Product Division", "Class Group"] and "Timestamp" in self.header_map:
+                        col_idx = self.header_map["Timestamp"]
+                        ws.insert_cols(col_idx)
+                    else:
+                        current_max_col += 1
+                        col_idx = current_max_col
+
+                    cell = ws.cell(row=1, column=col_idx, value=req)
                     cell.font = header_font
-                    # cell.fill = header_fill # Optional: match existing style if desired
-                    self.header_map[req] = current_max_col
+                    self.header_map[req] = col_idx
                     new_headers_added = True
                     
+                    # Refresh map to keep indices accurate
+                    headers = [cell.value for cell in ws[1]]
+                    self.header_map = {h: i for i, h in enumerate(headers, 1) if h}
+
                     # Set approximate widths
                     if "Description" in req:
                         ws.column_dimensions[cell.column_letter].width = 50
                     elif "Title" in req:
-                         ws.column_dimensions[cell.column_letter].width = 30
-                    elif "Timestamp" in req:
-                         ws.column_dimensions[cell.column_letter].width = 20
+                        ws.column_dimensions[cell.column_letter].width = 30
+                    else:
+                        ws.column_dimensions[cell.column_letter].width = 20
 
             if new_headers_added:
                 wb.save(self.file_path)
@@ -115,9 +161,11 @@ class ExcelService:
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             
             updates = {
-                "Short Title": enriched_data.get("short_title", ""),
-                "Short Description": enriched_data.get("short_description", ""),
-                "Long Description": enriched_data.get("long_description", ""),
+                "Short Description (Enriched)": enriched_data.get("short_title", ""),
+                "Product Description (Enriched)": enriched_data.get("short_description", ""),
+                "Product Long Description (Enriched)": enriched_data.get("long_description", ""),
+                "Product Division": enriched_data.get("product_division", ""),
+                "Class Group": enriched_data.get("class_group", ""),
                 "Timestamp": timestamp
             }
             
@@ -138,7 +186,7 @@ class ExcelService:
     def get_existing_product_codes(self) -> Set[str]:
         """
         Get set of product codes that have already been enriched.
-        Checks if 'Short Title' column is populated.
+        Checks if 'Short Description (Enriched)' column is populated.
         
         Returns:
             Set[str]: Set of existing enriched product codes
@@ -152,11 +200,11 @@ class ExcelService:
             wb = load_workbook(self.file_path, read_only=True)
             ws = wb.active
             
-            # Find "Short Title" column index
+            # Find "Short Description (Enriched)" column index
             headers = [cell.value for cell in ws[1]]
             short_title_idx = -1
             for idx, header in enumerate(headers):
-                if header == "Short Title":
+                if header == "Short Description (Enriched)":
                     short_title_idx = idx
                     break
             
