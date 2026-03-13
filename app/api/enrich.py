@@ -1,6 +1,4 @@
-"""
-API endpoint for product enrichment.
-"""
+# This file defines the API routes — one to enrich a single product and one to bulk-enrich a batch of products, both powered by the AI agent service.
 
 import logging
 from fastapi import APIRouter, HTTPException

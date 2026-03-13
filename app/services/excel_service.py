@@ -1,6 +1,4 @@
-"""
-Excel service for saving enriched product data.
-"""
+# This file handles all reading and writing to the Excel file — it reads products that need enriching, saves the AI-generated content back to the right row, and tracks which products have already been done.
 
 import os
 import logging

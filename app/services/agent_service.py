@@ -1,3 +1,5 @@
+# This file runs the AI agents that enrich a product — a Creator agent writes the content, a Reviewer checks it, and a Classifier assigns the product to a division and class group.
+
 import json
 import logging
 from typing import Dict, Any, List
